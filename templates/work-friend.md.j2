@@ -1,0 +1,322 @@
+# Homelab Work Friend Snapshot
+**Generated:** {{ ansible_date_time.iso8601 }}
+**Snapshot Type:** Work Friend (Extended Details)
+
+This snapshot is like catching up with a coworker - more detail, context, and "how are things really going?"
+
+---
+
+## 📊 Infrastructure Overview
+
+| Metric | Value |
+|--------|-------|
+| Total Hosts | {{ groups['ssh_accessible'] | length }} |
+| Proxmox Hosts | {{ groups['proxmox_hosts'] | length }} |
+| Production Services | {{ groups['production_services'] | length }} |
+| Storage Hosts | {{ groups['storage'] | length }} |
+| Snapshot Time | {{ ansible_date_time.time }} UTC |
+
+---
+
+{% for host in groups['ssh_accessible'] %}
+{% set facts = hostvars[host] %}
+{% if facts.ping_result is defined and facts.ping_result.ping is defined %}
+# 🖥️ {{ host | upper }}
+
+## Basic Info
+- **Status:** ✅ Online
+- **IP Address:** {{ facts.ansible_host }}
+- **Role:** {{ facts.role | default('unknown') }}
+{% if facts.ansible_facts is defined %}
+- **OS:** {{ facts.ansible_facts.ansible_distribution | default('Unknown') }} {{ facts.ansible_facts.ansible_distribution_version | default('') }}
+- **Kernel:** {{ facts.ansible_facts.ansible_kernel | default('unknown') }}
+- **Hostname:** {{ facts.ansible_facts.ansible_hostname | default(host) }}
+- **Architecture:** {{ facts.ansible_facts.ansible_architecture | default('unknown') }}
+{% endif %}
+{% if facts.uptime_output is defined and facts.uptime_output.stdout is defined %}
+- **Uptime:** {{ facts.uptime_output.stdout }}
+{% endif %}
+{% if facts.load_average is defined and facts.load_average.stdout is defined %}
+- **Load Average:** {{ facts.load_average.stdout }}
+{% endif %}
+
+## Hardware Resources
+{% if facts.ansible_facts is defined %}
+- **CPU Cores:** {{ facts.ansible_facts.ansible_processor_vcpus | default('unknown') }} vCPUs
+- **CPU Model:** {{ facts.ansible_facts.ansible_processor[2] | default('unknown') if facts.ansible_facts.ansible_processor is defined else 'unknown' }}
+- **Total RAM:** {{ (facts.ansible_facts.ansible_memtotal_mb / 1024) | round(1) }} GB
+{% endif %}
+
+{% if facts.memory_details is defined and facts.memory_details.stdout is defined %}
+### Memory Details
+```
+{{ facts.memory_details.stdout }}
+```
+{% endif %}
+
+## Storage
+{% if facts.disk_details is defined and facts.disk_details.stdout is defined %}
+```
+{{ facts.disk_details.stdout }}
+```
+{% endif %}
+
+{% if facts.zfs_pools is defined and facts.zfs_pools.rc == 0 %}
+### ZFS Pools
+```
+{{ facts.zfs_pools.stdout }}
+```
+{% endif %}
+
+{% if facts.lvm_volumes is defined and facts.lvm_volumes.rc == 0 and facts.lvm_volumes.stdout | length > 0 %}
+### LVM Volumes
+```
+{{ facts.lvm_volumes.stdout }}
+```
+{% endif %}
+
+{% if facts.large_dirs is defined and facts.large_dirs.stdout is defined %}
+### Top 10 Largest Directories
+```
+{{ facts.large_dirs.stdout }}
+```
+{% endif %}
+
+## Network
+{% if facts.network_interfaces is defined and facts.network_interfaces.stdout is defined %}
+```
+{{ facts.network_interfaces.stdout }}
+```
+{% endif %}
+
+{% if facts.listening_services is defined and facts.listening_services.stdout is defined %}
+### Listening Services
+```
+{{ facts.listening_services.stdout }}
+```
+{% endif %}
+
+{% if facts.established_connections is defined and facts.established_connections.stdout is defined %}
+- **Active Connections:** {{ facts.established_connections.stdout }}
+{% endif %}
+
+## Performance
+{% if facts.top_cpu_processes is defined and facts.top_cpu_processes.stdout is defined %}
+### Top 5 Processes by CPU
+```
+{{ facts.top_cpu_processes.stdout }}
+```
+{% endif %}
+
+{% if facts.top_mem_processes is defined and facts.top_mem_processes.stdout is defined %}
+### Top 5 Processes by Memory
+```
+{{ facts.top_mem_processes.stdout }}
+```
+{% endif %}
+
+{% if facts.temperature_readings is defined and facts.temperature_readings.stdout is defined and 'not available' not in facts.temperature_readings.stdout %}
+### Temperature Readings
+```
+{{ facts.temperature_readings.stdout }}
+```
+{% endif %}
+
+{% if facts.idrac_temps is defined and 'not available' not in facts.idrac_temps.stdout %}
+### iDRAC/IPMI Temperatures
+```
+{{ facts.idrac_temps.stdout }}
+```
+{% endif %}
+
+{% if facts.is_proxmox is defined and facts.is_proxmox.stat.exists %}
+## Proxmox Details
+{% if facts.proxmox_version is defined and facts.proxmox_version.stdout is defined %}
+- **Version:** {{ facts.proxmox_version.stdout }}
+{% endif %}
+
+{% if facts.cluster_status is defined and facts.cluster_status.stdout is defined %}
+### Cluster Status
+```
+{{ facts.cluster_status.stdout }}
+```
+{% endif %}
+
+{% if facts.lxc_list is defined and facts.lxc_list.stdout is defined %}
+### LXC Containers
+```
+{{ facts.lxc_list.stdout }}
+```
+{% endif %}
+
+{% if facts.vm_list is defined and facts.vm_list.stdout is defined %}
+### Virtual Machines
+```
+{{ facts.vm_list.stdout }}
+```
+{% endif %}
+
+{% if facts.proxmox_storage is defined and facts.proxmox_storage.stdout is defined %}
+### Storage Status
+```
+{{ facts.proxmox_storage.stdout }}
+```
+{% endif %}
+{% endif %}
+
+{% if facts.has_docker is defined and facts.has_docker.stat.exists %}
+## Docker Details
+{% if facts.docker_version is defined and facts.docker_version.stdout is defined %}
+- **Version:** {{ facts.docker_version.stdout }}
+{% endif %}
+
+{% if facts.docker_containers_detailed is defined and facts.docker_containers_detailed.stdout is defined %}
+### Containers
+```
+{{ facts.docker_containers_detailed.stdout }}
+```
+{% endif %}
+
+{% if facts.docker_disk_usage is defined and facts.docker_disk_usage.stdout is defined %}
+### Disk Usage
+```
+{{ facts.docker_disk_usage.stdout }}
+```
+{% endif %}
+
+{% if facts.docker_networks is defined and facts.docker_networks.stdout is defined %}
+### Networks
+```
+{{ facts.docker_networks.stdout }}
+```
+{% endif %}
+{% endif %}
+
+## Health & Logs
+{% if facts.error_count is defined and facts.error_count.stdout is defined %}
+- **Recent Errors/Warnings:** {{ facts.error_count.stdout }} in last 100 log entries
+{% endif %}
+
+{% if facts.failed_services is defined and facts.failed_services.stdout is defined and facts.failed_services.stdout | length > 10 %}
+### Failed Services
+```
+{{ facts.failed_services.stdout }}
+```
+{% endif %}
+
+{% if facts.recent_logs is defined and facts.recent_logs.stdout is defined %}
+### Last 50 Log Entries
+```
+{{ facts.recent_logs.stdout }}
+```
+{% endif %}
+
+{% if facts.ssh_logins is defined and facts.ssh_logins.stdout is defined %}
+### Recent SSH Activity
+```
+{{ facts.ssh_logins.stdout }}
+```
+{% endif %}
+
+## Updates & Security
+{% if facts.available_updates is defined and facts.available_updates.stdout is defined %}
+- **Available Updates:** {{ facts.available_updates.stdout }} packages
+{% endif %}
+
+{% if facts.apt_cache is defined and facts.apt_cache.stat.exists %}
+- **Last APT Update:** {{ facts.apt_cache.stat.mtime | default('unknown') }}
+{% endif %}
+
+## Notes
+{% if facts.description is defined %}
+**Description:** {{ facts.description }}
+{% endif %}
+{% if facts.notes is defined %}
+**Notes:** {{ facts.notes }}
+{% endif %}
+
+---
+
+{% else %}
+# ❌ {{ host | upper }}
+
+**Status:** Offline or Unreachable
+**IP Address:** {{ facts.ansible_host }}
+**Last Known Role:** {{ facts.role | default('unknown') }}
+
+This host did not respond to ping. Possible reasons:
+- Host is powered off
+- Network connectivity issue
+- SSH service not running
+- Firewall blocking access
+
+---
+
+{% endif %}
+{% endfor %}
+
+# 📈 Aggregate Stats
+
+## Resource Summary
+{% set total_vcpus = 0 %}
+{% set total_ram_gb = 0 %}
+{% set online_hosts = 0 %}
+{% for host in groups['ssh_accessible'] %}
+{% set facts = hostvars[host] %}
+{% if facts.ping_result is defined and facts.ping_result.ping is defined %}
+{% set online_hosts = online_hosts + 1 %}
+{% if facts.ansible_facts is defined and facts.ansible_facts.ansible_processor_vcpus is defined %}
+{% set total_vcpus = total_vcpus + facts.ansible_facts.ansible_processor_vcpus %}
+{% endif %}
+{% if facts.ansible_facts is defined and facts.ansible_facts.ansible_memtotal_mb is defined %}
+{% set total_ram_gb = total_ram_gb + (facts.ansible_facts.ansible_memtotal_mb / 1024) %}
+{% endif %}
+{% endif %}
+{% endfor %}
+
+- **Online Hosts:** {{ online_hosts }} / {{ groups['ssh_accessible'] | length }}
+- **Total vCPUs:** {{ total_vcpus }}
+- **Total RAM:** {{ total_ram_gb | round(1) }} GB
+
+## Infrastructure Health Summary
+
+{% set total_errors = 0 %}
+{% for host in groups['ssh_accessible'] %}
+{% set facts = hostvars[host] %}
+{% if facts.error_count is defined and facts.error_count.stdout is defined %}
+{% set total_errors = total_errors + (facts.error_count.stdout | int) %}
+{% endif %}
+{% endfor %}
+
+- **Total Recent Errors/Warnings:** {{ total_errors }} across all hosts
+- **Overall Status:** {% if total_errors < 10 %}🟢 Healthy{% elif total_errors < 50 %}🟡 Minor Issues{% else %}🔴 Attention Needed{% endif %}
+
+---
+
+# 🤖 AI Agent Notes
+
+This is your "work friend" level snapshot - more conversational detail than the baseball card, but not overwhelming. Use this to:
+
+1. **Understand current state** - What's actually running right now
+2. **Spot issues** - Failed services, high error counts, disk usage
+3. **Performance context** - Load averages, top processes, resource usage
+4. **Recent activity** - Logs, SSH logins, changes
+
+**Key Infrastructure Context:**
+- **Current State:** Mid-rebuild (post-Thanksgiving)
+- **rseau removed:** Fan control moved to rawls
+- **MS-01 nodes being added:** 3-node Thunderbolt cluster
+- **Network reset pending:** Not yet executed
+- **Essential containers:** Fan control, Dockge, media stack (priorities)
+
+**When to re-snapshot:**
+- After major changes (new hosts, network reset)
+- When performance issues arise
+- Weekly for general health monitoring
+- Before/after maintenance windows
+
+---
+
+*Generated by Ansible Work Friend Playbook*
+*Update frequency: On-demand or weekly recommended*
+*Next snapshot: Run after network reset completion*

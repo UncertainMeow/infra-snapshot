@@ -1,0 +1,327 @@
+# AGENTS.md - Homelab Infrastructure Snapshot
+
+**Last Updated:** 2025-12-05 (Post-Thanksgiving Rebuild)
+**Snapshot Level:** Baseball Card + Context
+**Status:** Mid-Rebuild
+
+---
+
+## 📍 Current Infrastructure State
+
+**What's Happening:** Mid-way through "wipe everything and rebuild for the last time" project. Started right before Thanksgiving, now it's the Friday after.
+
+**Major Changes Since Last Stable:**
+- ❌ **rseau removed** - Proxmox host is gone
+- ✅ **Fan control moved** - Now running on rawls instead of rseau
+- 🔄 **MS-01 nodes being added** - 3x Minisforum MS-01 servers, stacked, being configured now
+- ⏳ **Network reset NOT started** - Planning docs are from Nov 22, but actual reset hasn't happened yet
+- 📍 **Currently in NYC apartment** - 12U server rack setup
+
+**What This Means for AI Agents:**
+- Don't assume planning docs reflect current reality
+- Some IPs may not be assigned yet
+- Network is still in "old" configuration
+- Container locations may have shifted
+
+---
+
+## 🏗️ Infrastructure Inventory
+
+### Proxmox Hosts (VLAN 3 - Lab Management)
+
+#### socrates (10.203.3.42)
+- **Role:** Main compute server
+- **Hardware:** Dell R730, Dual Xeon CPUs, 2x GPUs
+- **Purpose:** AI workloads (Ollama, OpenWebUI)
+- **iDRAC:** 10.203.3.8
+- **Critical Note:** Requires fan control container or it's **LOUD AS HELL**
+- **Status:** Online, fan control now handled by rawls
+
+#### rawls (10.203.3.47)
+- **Role:** General purpose Proxmox host
+- **Purpose:** Running fan control for socrates, hosting containers
+- **Status:** Online
+- **Note:** Fan control container moved here from rseau
+
+#### MS-01 Nodes (BEING ADDED)
+- **ms01-node1** (10.203.3.11) - **NEW**
+- **ms01-node2** (10.203.3.12) - **NEW**
+- **ms01-node3** (10.203.3.13) - **NEW**
+- **Architecture:** 3-node Proxmox cluster with Thunderbolt ring network
+- **Status:** Currently being deployed/configured
+- **Purpose:** High-availability cluster for future workloads
+
+#### plato (10.203.3.97 + 10.203.3.98)
+- **Role:** Dual-NIC server
+- **NICs:** 10.203.3.97 (primary), 10.203.3.98 (secondary)
+- **Status:** TBD (check if still in use)
+
+### Storage (VLAN 3)
+
+#### stuffs (10.203.3.99)
+- **Role:** Primary NAS
+- **Services:**
+  - File storage
+  - TFTP/PXE boot server (boot file: netboot.xyz.efi)
+  - Media stack (Docker containers: Jellyfin, Sonarr, Radarr, Prowlarr, SABnzbd, Overseerr)
+- **Status:** Online
+- **Note:** Essential for network boots and media services
+
+### Network Infrastructure (VLAN 1)
+
+#### UDM-Pro (10.203.1.1)
+- **Role:** Primary gateway and UniFi controller
+- **Manages:** All VLANs, DHCP, DNS, firewall rules
+- **Status:** Online
+- **Note:** Network reset planned but not yet executed
+
+#### Switches & APs
+- **USW Pro Max 24** - Main 24-port switch
+- **USW Flex Mini** (x2) - Small switches for edge locations
+- **U6+ AP** - WiFi 6 access point
+- **Status:** All managed via UDM-Pro
+
+### Production Services (VLAN 4 - Planned)
+
+**Note:** Most of these are PLANNED but not yet deployed. Network reset needs to happen first.
+
+#### Identity & Access
+- **Authentik** (10.203.4.2) - SSO/Identity provider - **PLANNED**
+
+#### DNS Services
+- **Technitium Primary** (10.203.4.3) - DNS for Tailscale network - **PLANNED**
+- **Technitium Secondary** (10.203.4.4) - DNS failover - **PLANNED**
+
+#### Networking
+- **Tailscale Subnet Router** (10.203.4.5) - LXC for remote access - **PLANNED**
+
+#### Infrastructure as Code
+- **GitLab** (10.203.4.15) - Version control, CI/CD - **PLANNED**
+- **NetBox** (10.203.4.16) - IPAM, network documentation - **PLANNED**
+
+#### Container Management
+- **Dockge** (10.203.4.20) - Docker container UI - **PLANNED** (high priority)
+
+---
+
+## 🎯 Essential Services Priority List
+
+When rebuilding, deploy in this order:
+
+1. **Fan Control Container** (rawls) - **CRITICAL** - Dell R730 will be jet-engine loud without it
+2. **Dockge** (VLAN 4) - Makes managing other containers easier
+3. **Media Stack** (stuffs NAS) - If actively used by household
+4. **Ollama** (socrates) - AI backend
+5. **OpenWebUI** (socrates) - AI web interface
+
+**Everything else is Phase 2+** (Authentik, DNS cluster, Tailscale router, GitLab, NetBox)
+
+---
+
+## 🌐 Network Architecture
+
+### VLANs (Planned - Not Yet Implemented)
+
+| VLAN | Name | Subnet | Purpose | Status |
+|------|------|--------|---------|--------|
+| 1 | Network Hardware | 10.203.1.0/24 | UDM-Pro, switches, APs | Active |
+| 2 | Trusted | 10.203.2.0/24 | Personal devices, smart home | Planned |
+| 3 | Lab Management (HQ) | 10.203.3.0/24 | Proxmox hosts, iDRAC, NAS | Active |
+| 4 | Production | 10.203.4.0/24 | VMs, containers, services | Planned |
+| 6 | Staging & Dev | 10.203.6.0/24 | Development, testing | Planned |
+| 9 | VPN Network | 10.203.9.0/24 | PIA-routed services | Planned |
+
+### IP Allocation Scheme (Standardized)
+
+```
+.1        = Gateway (UDM-Pro)
+.2-.10    = Infrastructure (switches, APs, critical services)
+.11-.50   = Servers and static services
+.51-.100  = Workstations and computers
+.101-.150 = IoT and smart home devices
+.151-.200 = DHCP pool
+.201-.254 = Reserved for future use
+```
+
+### Key Network Rules (Planned)
+
+- **VLAN 2 (Trusted) → All VLANs:** Allowed (personal devices manage everything)
+- **VLAN 4 (Production) → VLAN 3 (Management):** DENIED (security: VMs can't access hypervisors)
+- **VLAN 6 (Dev) → VLAN 4 (Production):** DENIED (isolate test from prod)
+- **Exception:** Production services CAN access NAS (10.203.3.99) for backups
+
+---
+
+## 🔧 Critical Context for AI Agents
+
+### Domain
+**doofus.co** (internal only)
+
+### Key Stakeholders
+- **Kellen (you):** Primary admin, requires full access from VLAN 2
+- **Vickie:** Household user on VLAN 2, should work without technical knowledge
+
+### Deployment Philosophy
+- **Switch-level VLANs** (not Proxmox SDN) - Simpler, more reliable
+- **LXC for infrastructure services** (DNS, Tailscale router)
+- **Docker for applications** (media stack, AI services)
+- **GitLab as primary source of truth** (future) → NetBox (IPAM) → UniFi (active state)
+
+### Architecture Decisions Rationale
+
+**Why separate VLAN 3 and VLAN 4?**
+- Security: If a VM is compromised, it can't directly access hypervisors
+- Best practice for homelabs in 2025
+
+**Why Tailscale subnet router in LXC?**
+- Easier to update/rebuild than installing on Proxmox hosts
+- If it breaks, doesn't affect hypervisor stability
+- Still provides full network access via subnet routing
+
+**Why only 5 essential containers?**
+- Repository used to track 31+ containers
+- Most were old, experimental, or ephemeral
+- Clean slate approach: only rebuild what's actually needed
+
+---
+
+## 📚 Important Documentation Locations
+
+### Planning Documents (TGR-Vault/)
+- **Architecture Decisions Summary.md** - Key design choices and rationale
+- **Network Reset Procedure.md** - Step-by-step reset guide (NOT YET EXECUTED)
+- **IP Allocation Plan.md** - Complete IP assignments
+- **Firewall Rules Configuration.md** - Inter-VLAN rules
+- **DHCP Reservations - Final List.md** - Static IP assignments
+- **Essential Containers List.md** - Priority rebuild list
+
+### Configuration Files
+- **networks.json** - UniFi network config export
+- **clients.json** - Device inventory with MACs
+- **unifi_dhcp_reservations.json** - DHCP reservation config
+- **IP_Allocation_Plan.csv** - Spreadsheet format
+
+### Deployment Scripts
+- **quick-dockge-lxc-setup.sh** - Deploy Dockge on Proxmox
+- **quick-media-stack-stuffs.sh** - Deploy media stack on NAS
+- **unifi-netbox-bidirectional-sync.py** - Sync UniFi ⇄ NetBox
+
+---
+
+## 🚨 Known Issues & Gotchas
+
+### Fan Control Container is CRITICAL
+- Dell R730 (socrates) is **extremely loud** without fan control
+- Container: `Dell_iDRAC_fan_controller` (tigerblue77/dell_idrac_fan_controller:latest)
+- Currently on rawls (was on rseau before removal)
+- Monitors iDRAC at 10.203.3.8
+- Checks temps every minute, ramps fans as needed
+- **Deploy this FIRST after any reset**
+
+### Docker Container MACs Change
+- Docker containers get MAC addresses starting with `bc:24:11:*`
+- These MACs are **dynamically assigned** and change on container recreate
+- Don't rely on DHCP reservations for Docker containers
+- Use DHCP pool or manually assign IPs in docker-compose
+
+### UniFi Post-Reset IP
+- After factory reset, UDM-Pro returns to **192.168.1.1**
+- You'll need to change your laptop to static IP 192.168.1.100 to access it
+- After initial config, it moves to 10.203.1.1
+
+### rseau is GONE
+- If you see references to rseau in old docs, it's been removed
+- Fan control moved to rawls
+- Technitium DNS containers need new home (likely MS-01 nodes)
+
+---
+
+## 🎯 Current Next Steps
+
+1. **Finish MS-01 node deployment** - Get 3-node cluster online
+2. **Execute network reset** - Follow Network Reset Procedure.md
+3. **Deploy fan control** - FIRST container to deploy post-reset
+4. **Deploy Dockge** - Makes other deployments easier
+5. **Test network connectivity** - Verify all VLANs routing correctly
+6. **Deploy essential containers** - Media stack, Ollama, OpenWebUI
+
+---
+
+## 🔄 How to Update This File
+
+### Manual Updates
+Just edit this file directly with current state.
+
+### Automated Snapshots (Ansible)
+
+**Baseball Card Level** (quick facts):
+```bash
+ansible-playbook -i inventory.ini playbook-baseball-card.yml
+# Output: ./snapshots/baseball-card-YYYY-MM-DD.md
+```
+
+**Work Friend Level** (detailed info):
+```bash
+ansible-playbook -i inventory.ini playbook-work-friend.yml
+# Output: ./snapshots/work-friend-YYYY-MM-DD.md
+```
+
+**Copy snapshot content into this file** to update infrastructure details.
+
+### When to Update
+- After major changes (new hosts, service deployments)
+- After network reset
+- Weekly during rebuild phase
+- Before starting conversations with AI agents about infrastructure
+
+---
+
+## 💬 How AI Agents Should Use This File
+
+### For Planning Discussions
+- **Reference current state** - Don't assume docs match reality
+- **Ask about unknowns** - If status is unclear, ask instead of assuming
+- **Respect phase boundaries** - Don't suggest Phase 2 work if Phase 1 isn't done
+
+### For Troubleshooting
+- **Check "Known Issues"** - Common problems are documented
+- **Verify host exists** - rseau is gone, MS-01 nodes are new
+- **Confirm services running** - Many planned services aren't deployed yet
+
+### For Configuration Changes
+- **Follow IP allocation scheme** - Respect the .1-.254 ranges
+- **Consider VLAN placement** - Infrastructure vs production services
+- **Update this file** - After making changes, update relevant sections
+
+### Example Good Questions
+✅ "I see socrates is at 10.203.3.42. Is it currently online?"
+✅ "The docs mention Authentik at 10.203.4.2, but it's marked PLANNED. Should we deploy it?"
+✅ "MS-01 nodes are listed as 'being added'. What's their current status?"
+
+### Example Bad Assumptions
+❌ "Let me SSH to rseau to check..." (rseau is gone!)
+❌ "Since the network reset is documented, all VLANs are configured..." (reset hasn't happened!)
+❌ "I'll configure the Technitium DNS cluster on rseau..." (rseau is gone!)
+
+---
+
+## 📊 Quick Reference Card
+
+**Gateway:** 10.203.1.1 (UDM-Pro)
+**DNS:** 1.1.1.1, 8.8.8.8 (currently), 10.203.4.3/4 (planned Technitium)
+**Domain:** doofus.co
+**NAS:** 10.203.3.99 (stuffs)
+**Main Compute:** 10.203.3.42 (socrates, Dell R730)
+**iDRAC:** 10.203.3.8 (socrates management)
+
+**Active Proxmox Hosts:** socrates, rawls, ms01-node1/2/3 (new), plato
+**Removed Hosts:** rseau (gone as of Thanksgiving 2024)
+
+**Critical First Deploy:** Fan control container (on rawls)
+**Current Phase:** Network rebuild in progress, mid-Thanksgiving cleanup
+
+---
+
+*This file is the "baseball card" for AI agents working on this homelab.*
+*Keep it updated as the infrastructure evolves.*
+*Next major update: After network reset execution.*

@@ -1,0 +1,53 @@
+# Ansible
+*.retry
+playbooks/inventory.ini
+playbooks/.vault_pass
+*.vault
+
+# Snapshots (generated output - optional, uncomment if you don't want to track them)
+# snapshots/*.md
+# snapshots/*.json
+# snapshots/*.prom
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+venv/
+env/
+ENV/
+
+# IDEs
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Secrets and credentials
+*.pem
+*.key
+*_rsa
+*_rsa.pub
+*.pfx
+.env
+.env.local
+*.crt
+*.csr
+
+# Logs
+*.log
+
+# Molecule
+.molecule/
+.cache/
+
+# Testing
+.pytest_cache/
+.tox/

@@ -1,0 +1,109 @@
+---
+# Baseball Card Level Snapshot
+# Quick essential facts about each host - designed for AGENTS.md
+# Output: Concise, AI-agent-friendly markdown
+
+- name: Homelab Baseball Card Snapshot
+  hosts: ssh_accessible
+  gather_facts: yes
+  ignore_errors: yes
+  any_errors_fatal: no
+
+  tasks:
+    - name: Gather system facts
+      ansible.builtin.setup:
+        gather_subset:
+          - '!all'
+          - '!min'
+          - network
+          - hardware
+          - virtual
+      register: facts_output
+
+    - name: Check if host is reachable
+      ansible.builtin.ping:
+      register: ping_result
+
+    - name: Get uptime
+      ansible.builtin.command: uptime -p
+      register: uptime_output
+      changed_when: false
+      failed_when: false
+
+    - name: Get disk usage summary
+      ansible.builtin.shell: df -h / | tail -1 | awk '{print $5}'
+      register: disk_usage
+      changed_when: false
+      failed_when: false
+
+    - name: Get memory usage
+      ansible.builtin.shell: free -h | grep Mem | awk '{print $3 "/" $2}'
+      register: memory_usage
+      changed_when: false
+      failed_when: false
+
+    - name: Check if Proxmox
+      ansible.builtin.stat:
+        path: /usr/bin/pvesh
+      register: is_proxmox
+
+    - name: Get Proxmox version (if applicable)
+      ansible.builtin.command: pveversion
+      register: proxmox_version
+      when: is_proxmox.stat.exists
+      changed_when: false
+      failed_when: false
+
+    - name: List running LXC containers (Proxmox)
+      ansible.builtin.shell: pct list | tail -n +2 | awk '{print $3}' | tr '\n' ', ' | sed 's/,$//'
+      register: lxc_containers
+      when: is_proxmox.stat.exists
+      changed_when: false
+      failed_when: false
+
+    - name: List running VMs (Proxmox)
+      ansible.builtin.shell: qm list | tail -n +2 | awk '{print $2}' | tr '\n' ', ' | sed 's/,$//'
+      register: running_vms
+      when: is_proxmox.stat.exists
+      changed_when: false
+      failed_when: false
+
+    - name: Check for Docker
+      ansible.builtin.stat:
+        path: /usr/bin/docker
+      register: has_docker
+
+    - name: List running Docker containers
+      ansible.builtin.shell: docker ps --format '{{.Names}}' | tr '\n' ', ' | sed 's/,$//'
+      register: docker_containers
+      when: has_docker.stat.exists
+      changed_when: false
+      failed_when: false
+
+    - name: Get listening ports
+      ansible.builtin.shell: ss -tlnp | grep LISTEN | awk '{print $4}' | awk -F: '{print $NF}' | sort -u | tr '\n' ', ' | sed 's/,$//'
+      register: listening_ports
+      changed_when: false
+      failed_when: false
+
+- name: Generate Baseball Card Report
+  hosts: localhost
+  gather_facts: no
+  run_once: yes
+
+  tasks:
+    - name: Create report directory
+      ansible.builtin.file:
+        path: ./snapshots
+        state: directory
+        mode: '0755'
+
+    - name: Generate baseball card markdown
+      ansible.builtin.template:
+        src: templates/baseball-card.md.j2
+        dest: "./snapshots/baseball-card-{{ ansible_date_time.date }}.md"
+      delegate_to: localhost
+
+    - name: Display report location
+      ansible.builtin.debug:
+        msg: "Baseball card snapshot saved to: ./snapshots/baseball-card-{{ ansible_date_time.date }}.md"

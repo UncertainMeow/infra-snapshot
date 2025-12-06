@@ -1,0 +1,284 @@
+---
+# Work Friend Level Snapshot
+# Extended information - like chatting with a coworker about the infrastructure
+# Includes: storage details, recent logs, service health, performance metrics
+
+- name: Homelab Work Friend Snapshot
+  hosts: ssh_accessible
+  gather_facts: yes
+  ignore_errors: yes
+  any_errors_fatal: no
+
+  tasks:
+    # =========================================================================
+    # BASIC FACTS (same as baseball card)
+    # =========================================================================
+
+    - name: Gather system facts
+      ansible.builtin.setup:
+        gather_subset:
+          - '!all'
+          - network
+          - hardware
+          - virtual
+      register: facts_output
+
+    - name: Check if host is reachable
+      ansible.builtin.ping:
+      register: ping_result
+
+    - name: Get uptime
+      ansible.builtin.command: uptime -p
+      register: uptime_output
+      changed_when: false
+      failed_when: false
+
+    - name: Get load average
+      ansible.builtin.shell: uptime | awk -F'load average:' '{print $2}' | xargs
+      register: load_average
+      changed_when: false
+      failed_when: false
+
+    # =========================================================================
+    # STORAGE DETAILS
+    # =========================================================================
+
+    - name: Get detailed disk usage
+      ansible.builtin.shell: df -h | grep -E '^/dev|^Filesystem' | column -t
+      register: disk_details
+      changed_when: false
+      failed_when: false
+
+    - name: Get largest directories (top 10)
+      ansible.builtin.shell: du -h / --max-depth=2 2>/dev/null | sort -hr | head -10
+      register: large_dirs
+      changed_when: false
+      failed_when: false
+      when: ansible_facts.ansible_system == "Linux"
+
+    - name: Check ZFS pools (if applicable)
+      ansible.builtin.shell: zpool list
+      register: zfs_pools
+      changed_when: false
+      failed_when: false
+
+    - name: Check LVM volumes
+      ansible.builtin.shell: lvdisplay | grep -E 'LV Path|LV Size' | paste - -
+      register: lvm_volumes
+      changed_when: false
+      failed_when: false
+
+    # =========================================================================
+    # MEMORY & PERFORMANCE
+    # =========================================================================
+
+    - name: Get detailed memory info
+      ansible.builtin.shell: free -h
+      register: memory_details
+      changed_when: false
+      failed_when: false
+
+    - name: Get top 5 processes by CPU
+      ansible.builtin.shell: ps aux --sort=-%cpu | head -6
+      register: top_cpu_processes
+      changed_when: false
+      failed_when: false
+
+    - name: Get top 5 processes by memory
+      ansible.builtin.shell: ps aux --sort=-%mem | head -6
+      register: top_mem_processes
+      changed_when: false
+      failed_when: false
+
+    # =========================================================================
+    # NETWORK INFO
+    # =========================================================================
+
+    - name: Get network interface details
+      ansible.builtin.shell: ip -brief addr show
+      register: network_interfaces
+      changed_when: false
+      failed_when: false
+
+    - name: Get listening services with process names
+      ansible.builtin.shell: ss -tlnp | grep LISTEN
+      register: listening_services
+      changed_when: false
+      failed_when: false
+
+    - name: Get established connections count
+      ansible.builtin.shell: ss -tan | grep ESTAB | wc -l
+      register: established_connections
+      changed_when: false
+      failed_when: false
+
+    # =========================================================================
+    # RECENT LOGS
+    # =========================================================================
+
+    - name: Get last 50 syslog entries
+      ansible.builtin.shell: journalctl -n 50 --no-pager
+      register: recent_logs
+      changed_when: false
+      failed_when: false
+
+    - name: Get error/warning count in last 100 log entries
+      ansible.builtin.shell: journalctl -n 100 --no-pager | grep -iE 'error|warn|fail' | wc -l
+      register: error_count
+      changed_when: false
+      failed_when: false
+
+    - name: Get failed systemd services
+      ansible.builtin.shell: systemctl list-units --state=failed --no-pager
+      register: failed_services
+      changed_when: false
+      failed_when: false
+
+    # =========================================================================
+    # PROXMOX SPECIFIC
+    # =========================================================================
+
+    - name: Check if Proxmox
+      ansible.builtin.stat:
+        path: /usr/bin/pvesh
+      register: is_proxmox
+
+    - name: Get Proxmox version
+      ansible.builtin.command: pveversion
+      register: proxmox_version
+      when: is_proxmox.stat.exists
+      changed_when: false
+      failed_when: false
+
+    - name: Get detailed LXC container list
+      ansible.builtin.shell: pct list
+      register: lxc_list
+      when: is_proxmox.stat.exists
+      changed_when: false
+      failed_when: false
+
+    - name: Get detailed VM list
+      ansible.builtin.shell: qm list
+      register: vm_list
+      when: is_proxmox.stat.exists
+      changed_when: false
+      failed_when: false
+
+    - name: Get Proxmox storage status
+      ansible.builtin.shell: pvesm status
+      register: proxmox_storage
+      when: is_proxmox.stat.exists
+      changed_when: false
+      failed_when: false
+
+    - name: Get Proxmox cluster status
+      ansible.builtin.shell: pvecm status 2>&1 || echo "Not in a cluster"
+      register: cluster_status
+      when: is_proxmox.stat.exists
+      changed_when: false
+      failed_when: false
+
+    # =========================================================================
+    # DOCKER SPECIFIC
+    # =========================================================================
+
+    - name: Check for Docker
+      ansible.builtin.stat:
+        path: /usr/bin/docker
+      register: has_docker
+
+    - name: Get Docker version
+      ansible.builtin.command: docker --version
+      register: docker_version
+      when: has_docker.stat.exists
+      changed_when: false
+      failed_when: false
+
+    - name: Get detailed Docker container list
+      ansible.builtin.shell: docker ps -a --format 'table {{.Names}}\t{{.Status}}\t{{.Image}}'
+      register: docker_containers_detailed
+      when: has_docker.stat.exists
+      changed_when: false
+      failed_when: false
+
+    - name: Get Docker disk usage
+      ansible.builtin.command: docker system df
+      register: docker_disk_usage
+      when: has_docker.stat.exists
+      changed_when: false
+      failed_when: false
+
+    - name: Get Docker network list
+      ansible.builtin.command: docker network ls
+      register: docker_networks
+      when: has_docker.stat.exists
+      changed_when: false
+      failed_when: false
+
+    # =========================================================================
+    # SECURITY & UPDATES
+    # =========================================================================
+
+    - name: Check for available updates (Debian/Ubuntu)
+      ansible.builtin.shell: apt list --upgradable 2>/dev/null | wc -l
+      register: available_updates
+      when: ansible_facts.ansible_os_family == "Debian"
+      changed_when: false
+      failed_when: false
+
+    - name: Get last apt update time
+      ansible.builtin.stat:
+        path: /var/cache/apt/pkgcache.bin
+      register: apt_cache
+      when: ansible_facts.ansible_os_family == "Debian"
+
+    - name: Check SSH login attempts (last 20)
+      ansible.builtin.shell: journalctl -u ssh -n 20 --no-pager | grep -i 'accepted\|failed' || echo "No recent SSH events"
+      register: ssh_logins
+      changed_when: false
+      failed_when: false
+
+    # =========================================================================
+    # TEMPERATURE & HARDWARE (if available)
+    # =========================================================================
+
+    - name: Check for sensors package
+      ansible.builtin.shell: command -v sensors
+      register: has_sensors
+      changed_when: false
+      failed_when: false
+
+    - name: Get temperature readings
+      ansible.builtin.shell: sensors 2>/dev/null || echo "Sensors not available"
+      register: temperature_readings
+      when: has_sensors.rc == 0
+      changed_when: false
+      failed_when: false
+
+    - name: Get iDRAC info (if Dell server)
+      ansible.builtin.shell: ipmitool sdr type temperature 2>/dev/null || echo "iDRAC/IPMI not available"
+      register: idrac_temps
+      changed_when: false
+      failed_when: false
+
+- name: Generate Work Friend Report
+  hosts: localhost
+  gather_facts: no
+  run_once: yes
+
+  tasks:
+    - name: Create report directory
+      ansible.builtin.file:
+        path: ./snapshots
+        state: directory
+        mode: '0755'
+
+    - name: Generate work friend markdown
+      ansible.builtin.template:
+        src: templates/work-friend.md.j2
+        dest: "./snapshots/work-friend-{{ ansible_date_time.date }}.md"
+      delegate_to: localhost
+
+    - name: Display report location
+      ansible.builtin.debug:
+        msg: "Work friend snapshot saved to: ./snapshots/work-friend-{{ ansible_date_time.date }}.md"
