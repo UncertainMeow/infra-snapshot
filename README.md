@@ -1,15 +1,13 @@
-# Infrastructure Baseball Cards
+# Infra Snapshot
 
-**Stop hand-waving. Start snapsh
-
-otting.** 🎴📸
+**Stop hand-waving. Start snapshotting.** 📸
 
 > *"Give your AI agents actual facts instead of embarrassingly vague descriptions of your homelab"*
 
 [![Ansible](https://img.shields.io/badge/ansible-2.9+-blue.svg)](https://www.ansible.com/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
-**Automated infrastructure snapshots at multiple detail levels - like baseball cards for your servers.**
+**Automated infrastructure snapshots at multiple detail levels.**
 
 ---
 

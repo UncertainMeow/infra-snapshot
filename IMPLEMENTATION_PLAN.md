@@ -1,4 +1,4 @@
-# Infrastructure Baseball Cards - Implementation Plan
+# Infra Snapshot - Implementation Plan
 **Architecture Review Date:** 2025-12-05
 **Current Status:** Production-ready homelab tool (Grade: B+)
 **Next Phase:** Security hardening and code quality improvements
@@ -8,7 +8,7 @@
 ## Project Overview
 
 ### What This Is
-An Ansible-based automation system that generates markdown documentation ("baseball cards") of infrastructure at multiple detail levels. Eliminates hand-waving when describing infrastructure to AI agents.
+An Ansible-based automation system that generates markdown documentation (snapshots) of infrastructure at multiple detail levels. Eliminates hand-waving when describing infrastructure to AI agents.
 
 ### Architecture Pattern
 **Two-Phase Pipeline (ETL Model)**
